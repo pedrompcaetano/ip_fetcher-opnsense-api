@@ -12,7 +12,7 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout
+        uses: actions/checkout@main
 
       - name: Build container image with Podman
         run: |
