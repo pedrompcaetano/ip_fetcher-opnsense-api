@@ -12,7 +12,7 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@main
+        uses: actions/checkout@v4
 
       - name: Build container image with Podman
         run: |
@@ -22,3 +22,20 @@ jobs:
         run: |
           podman images
           podman run --rm localhost/opnsense-api:latest /opnsense_api --help || true
+
+      - name: Save Podman image to archive
+        run: |
+          podman save -o opnsense-api.tar localhost/opnsense-api:latest
+
+      - name: Generate SBOM
+        uses: anchore/sbom-action@v0
+        with:
+          image: archive:opnsense-api.tar
+          format: cyclonedx-json
+          output-file: sbom.json
+
+      - name: Upload SBOM Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: opnsense-api-sbom
+          path: sbom.json
