@@ -1,16 +1,20 @@
 # Stage 1: Build static binary with Alpine
-FROM alpine:3.20 AS builder
+FROM alpine:3.24 AS builder
 
-# Install build tools and explicit static library packages
+# Install build tools, header packages (-dev), and static archives (-static)
 RUN apk add --no-cache \
     build-base \
     pkgconf \
+    curl-dev \
     curl-static \
-    openssl-libs-static \
-    zlib-static \
-    nghttp2-static \
-    libmicrohttpd-dev \
     cjson-dev \
+    libmicrohttpd-dev \
+    openssl-dev \
+    openssl-libs-static \
+    zlib-dev \
+    zlib-static \
+    nghttp2-dev \
+    nghttp2-static \
     ca-certificates
 
 WORKDIR /build
