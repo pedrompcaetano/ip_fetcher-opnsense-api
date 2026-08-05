@@ -2,7 +2,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
-#include <arpa/inet.h>
 #include <curl/curl.h>
 #include <cjson/cJSON.h>
 #include <microhttpd.h>
@@ -18,9 +17,11 @@ struct AppConfig {
     const char *fw1_ip;
     const char *fw1_key;
     const char *fw1_sec;
+    const char *fw1_int;
     const char *fw2_ip;
     const char *fw2_key;
     const char *fw2_sec;
+    const char *fw2_int;
 };
 
 static struct AppConfig app_config;
@@ -54,52 +55,43 @@ static size_t curl_write_cb(void *contents, size_t size, size_t nmemb, void *use
     return realsize;
 }
 
-static int is_public_ipv4(const char *ip_str) {
-    struct in_addr addr;
-    if (inet_pton(AF_INET, ip_str, &addr) != 1) return 0;
-
-    uint32_t ip = ntohl(addr.s_addr);
-    if ((ip & 0xFF000000) == 0x0A000000) return 0; /* 10.0.0.0/8 */
-    if ((ip & 0xFFF00000) == 0xAC100000) return 0; /* 172.16.0.0/12 */
-    if ((ip & 0xFFFF0000) == 0xC0A80000) return 0; /* 192.168.0.0/16 */
-    if ((ip & 0xFFC00000) == 0x64400000) return 0; /* 100.64.0.0/10 (CGNAT) */
-    if ((ip & 0xFF000000) == 0x7F000000) return 0; /* 127.0.0.0/8 */
-    if ((ip & 0xFFFF0000) == 0xA9FE0000) return 0; /* 169.254.0.0/16 */
-
-    return 1;
-}
-
-static void extract_public_ip_from_json(const char *json_str, char *output, size_t out_len) {
+/* Extracts the IP directly from message -> ipv4 -> value -> [0] -> ipaddr */
+static void extract_ip_from_json(const char *json_str, char *output, size_t out_len) {
     snprintf(output, out_len, "Not Found");
     cJSON *json = cJSON_Parse(json_str);
     if (!json) return;
 
-    if (cJSON_IsObject(json)) {
-        cJSON *interface = NULL;
-        /* Iterate over interfaces ("vmx0", "vmx1", etc.) */
-        cJSON_ArrayForEach(interface, json) {
-            cJSON *ipv4_arr = cJSON_GetObjectItemCaseSensitive(interface, "ipv4");
-            if (cJSON_IsArray(ipv4_arr)) {
-                cJSON *entry = NULL;
-                /* Iterate over the IPv4 array objects */
-                cJSON_ArrayForEach(entry, ipv4_arr) {
-                    cJSON *ip_item = cJSON_GetObjectItemCaseSensitive(entry, "ipaddr");
-                    if (cJSON_IsString(ip_item) && (ip_item->valuestring != NULL)) {
-                        if (is_public_ipv4(ip_item->valuestring)) {
-                            snprintf(output, out_len, "%s", ip_item->valuestring);
-                            cJSON_Delete(json);
-                            return;
+    cJSON *msg = cJSON_GetObjectItemCaseSensitive(json, "message");
+    if (msg) {
+        cJSON *ipv4_obj = cJSON_GetObjectItemCaseSensitive(msg, "ipv4");
+        if (ipv4_obj) {
+            cJSON *val = cJSON_GetObjectItemCaseSensitive(ipv4_obj, "value");
+            if (val && cJSON_IsArray(val)) {
+                cJSON *elem = cJSON_GetArrayItem(val, 0); /* Grab the first IP object */
+                if (elem) {
+                    cJSON *ipaddr = cJSON_GetObjectItemCaseSensitive(elem, "ipaddr");
+                    if (ipaddr && cJSON_IsString(ipaddr) && ipaddr->valuestring) {
+                        /* Strip CIDR suffix (e.g., /27) */
+                        const char *slash = strchr(ipaddr->valuestring, '/');
+                        if (slash) {
+                            size_t len = slash - ipaddr->valuestring;
+                            if (len >= out_len) len = out_len - 1;
+                            strncpy(output, ipaddr->valuestring, len);
+                            output[len] = '\0';
+                        } else {
+                            snprintf(output, out_len, "%s", ipaddr->valuestring);
                         }
                     }
                 }
             }
         }
     }
+
     cJSON_Delete(json);
 }
 
-static void fetch_opnsense_ip(const char* target_ip, const char* api_key, const char* api_sec, char *ip_buffer, size_t buf_len) {
-    if (!target_ip || !api_key || !api_sec) {
+static void fetch_opnsense_ip(const char* target_ip, const char* api_key, const char* api_sec, const char* iface, char *ip_buffer, size_t buf_len) {
+    if (!target_ip || !api_key || !api_sec || !iface) {
         snprintf(ip_buffer, buf_len, "Unconfigured");
         return;
     }
@@ -113,7 +105,8 @@ static void fetch_opnsense_ip(const char* target_ip, const char* api_key, const 
     struct MemoryStruct chunk = { NULL, 0 };
     char url[256], userpwd[256];
     
-    snprintf(url, sizeof(url), "https://%s/api/diagnostics/interface/getInterfaceConfig", target_ip);
+    /* Dynamically query the configured interface */
+    snprintf(url, sizeof(url), "https://%s/api/interfaces/overview/getInterface/%s", target_ip, iface);
     snprintf(userpwd, sizeof(userpwd), "%s:%s", api_key, api_sec);
 
     curl_easy_setopt(curl, CURLOPT_URL, url);
@@ -126,7 +119,7 @@ static void fetch_opnsense_ip(const char* target_ip, const char* api_key, const 
     curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 0L);
 
     if (curl_easy_perform(curl) == CURLE_OK && chunk.memory) {
-        extract_public_ip_from_json(chunk.memory, ip_buffer, buf_len);
+        extract_ip_from_json(chunk.memory, ip_buffer, buf_len);
     } else {
         snprintf(ip_buffer, buf_len, "Unreachable");
     }
@@ -178,8 +171,8 @@ static enum MHD_Result answer_to_connection(void *cls, struct MHD_Connection *co
 
     /* 5. Fetch IPs */
     char fw1_ip[64], fw2_ip[64];
-    fetch_opnsense_ip(app_config.fw1_ip, app_config.fw1_key, app_config.fw1_sec, fw1_ip, sizeof(fw1_ip));
-    fetch_opnsense_ip(app_config.fw2_ip, app_config.fw2_key, app_config.fw2_sec, fw2_ip, sizeof(fw2_ip));
+    fetch_opnsense_ip(app_config.fw1_ip, app_config.fw1_key, app_config.fw1_sec, app_config.fw1_int, fw1_ip, sizeof(fw1_ip));
+    fetch_opnsense_ip(app_config.fw2_ip, app_config.fw2_key, app_config.fw2_sec, app_config.fw2_int, fw2_ip, sizeof(fw2_ip));
 
     /* 6. Generate JSON Response */
     cJSON *res_json = cJSON_CreateObject();
@@ -217,9 +210,14 @@ int main(void) {
     app_config.fw1_ip = getenv("OPNSENSE1_IP");
     app_config.fw1_key = getenv("OPNSENSE1_KEY");
     app_config.fw1_sec = getenv("OPNSENSE1_SECRET");
+    app_config.fw1_int = getenv("OPNSENSE1_INT");
+    if (!app_config.fw1_int) app_config.fw1_int = "vmx0"; /* Default fallback */
+
     app_config.fw2_ip = getenv("OPNSENSE2_IP");
     app_config.fw2_key = getenv("OPNSENSE2_KEY");
     app_config.fw2_sec = getenv("OPNSENSE2_SECRET");
+    app_config.fw2_int = getenv("OPNSENSE2_INT");
+    if (!app_config.fw2_int) app_config.fw2_int = "vmx0"; /* Default fallback */
 
     /* Start the HTTP Daemon */
     struct MHD_Daemon *daemon = MHD_start_daemon(
