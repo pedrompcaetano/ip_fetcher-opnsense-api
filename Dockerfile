@@ -16,7 +16,7 @@ COPY main.c .
 RUN gcc -O2 -o opnsense_api main.c -lmicrohttpd -lcjson -lcurl
 
 # Stage 2: Minimal Runtime Environment
-FROM debian:trixie-slim
+FROM gcr.io/distroless/cc-debian13
 
 # Install only the necessary runtime libraries
 RUN apt-get update && \
