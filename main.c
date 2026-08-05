@@ -9,19 +9,22 @@
 #include <unistd.h>
 
 #define MAX_RESPONSE_SIZE (1024 * 1024)
+#define MAX_HOST_SCAN 64
 #define PORT 8000
 
-/* Global application configuration */
+typedef struct {
+    int id;
+    char *ip;
+    char *key;
+    char *sec;
+    char *iface;
+    char json_key[64];
+} OpnsenseHost;
+
 struct AppConfig {
     char auth_header[512];
-    const char *fw1_ip;
-    const char *fw1_key;
-    const char *fw1_sec;
-    const char *fw1_int;
-    const char *fw2_ip;
-    const char *fw2_key;
-    const char *fw2_sec;
-    const char *fw2_int;
+    OpnsenseHost *hosts;
+    size_t host_count;
 };
 
 static struct AppConfig app_config;
@@ -67,7 +70,7 @@ static void extract_ip_from_json(const char *json_str, char *output, size_t out_
         if (ipv4_obj) {
             cJSON *val = cJSON_GetObjectItemCaseSensitive(ipv4_obj, "value");
             if (val && cJSON_IsArray(val)) {
-                cJSON *elem = cJSON_GetArrayItem(val, 0); /* Grab the first IP object */
+                cJSON *elem = cJSON_GetArrayItem(val, 0);
                 if (elem) {
                     cJSON *ipaddr = cJSON_GetObjectItemCaseSensitive(elem, "ipaddr");
                     if (ipaddr && cJSON_IsString(ipaddr) && ipaddr->valuestring) {
@@ -105,7 +108,6 @@ static void fetch_opnsense_ip(const char* target_ip, const char* api_key, const 
     struct MemoryStruct chunk = { NULL, 0 };
     char url[256], userpwd[256];
     
-    /* Dynamically query the configured interface */
     snprintf(url, sizeof(url), "https://%s/api/interfaces/overview/getInterface/%s", target_ip, iface);
     snprintf(userpwd, sizeof(userpwd), "%s:%s", api_key, api_sec);
 
@@ -169,17 +171,18 @@ static enum MHD_Result answer_to_connection(void *cls, struct MHD_Connection *co
     const char *xff = MHD_lookup_connection_value(connection, MHD_HEADER_KIND, "X-Forwarded-For");
     if (!xff) xff = "Unknown";
 
-    /* 5. Fetch IPs */
-    char fw1_ip[64], fw2_ip[64];
-    fetch_opnsense_ip(app_config.fw1_ip, app_config.fw1_key, app_config.fw1_sec, app_config.fw1_int, fw1_ip, sizeof(fw1_ip));
-    fetch_opnsense_ip(app_config.fw2_ip, app_config.fw2_key, app_config.fw2_sec, app_config.fw2_int, fw2_ip, sizeof(fw2_ip));
-
-    /* 6. Generate JSON Response */
+    /* 5. Generate JSON Response */
     cJSON *res_json = cJSON_CreateObject();
     cJSON_AddStringToObject(res_json, "source_ip", xff);
-    cJSON_AddStringToObject(res_json, "fw1_public_ip", fw1_ip);
-    cJSON_AddStringToObject(res_json, "fw2_public_ip", fw2_ip);
     
+    /* 6. Iterate through all configured dynamic hosts */
+    for (size_t i = 0; i < app_config.host_count; i++) {
+        OpnsenseHost *h = &app_config.hosts[i];
+        char fetched_ip[64];
+        fetch_opnsense_ip(h->ip, h->key, h->sec, h->iface, fetched_ip, sizeof(fetched_ip));
+        cJSON_AddStringToObject(res_json, h->json_key, fetched_ip);
+    }
+
     char *json_str = cJSON_PrintUnformatted(res_json);
     cJSON_Delete(res_json);
 
@@ -206,18 +209,39 @@ int main(void) {
         return EXIT_FAILURE;
     }
     snprintf(app_config.auth_header, sizeof(app_config.auth_header), "Bearer %s", token);
-    
-    app_config.fw1_ip = getenv("OPNSENSE1_IP");
-    app_config.fw1_key = getenv("OPNSENSE1_KEY");
-    app_config.fw1_sec = getenv("OPNSENSE1_SECRET");
-    app_config.fw1_int = getenv("OPNSENSE1_INT");
-    if (!app_config.fw1_int) app_config.fw1_int = "vmx0"; /* Default fallback */
 
-    app_config.fw2_ip = getenv("OPNSENSE2_IP");
-    app_config.fw2_key = getenv("OPNSENSE2_KEY");
-    app_config.fw2_sec = getenv("OPNSENSE2_SECRET");
-    app_config.fw2_int = getenv("OPNSENSE2_INT");
-    if (!app_config.fw2_int) app_config.fw2_int = "vmx0"; /* Default fallback */
+    /* Dynamically discover OPNSENSE<N>_ environment variables */
+    app_config.hosts = NULL;
+    app_config.host_count = 0;
+
+    for (int i = 1; i <= MAX_HOST_SCAN; i++) {
+        char env_ip[64], env_key[64], env_sec[64], env_int[64];
+        snprintf(env_ip, sizeof(env_ip), "OPNSENSE%d_IP", i);
+        snprintf(env_key, sizeof(env_key), "OPNSENSE%d_KEY", i);
+        snprintf(env_sec, sizeof(env_sec), "OPNSENSE%d_SECRET", i);
+        snprintf(env_int, sizeof(env_int), "OPNSENSE%d_INT", i);
+
+        const char *ip = getenv(env_ip);
+        const char *key = getenv(env_key);
+        const char *sec = getenv(env_sec);
+        const char *iface = getenv(env_int);
+
+        if (ip && key && sec) {
+            app_config.hosts = realloc(app_config.hosts, (app_config.host_count + 1) * sizeof(OpnsenseHost));
+            OpnsenseHost *host = &app_config.hosts[app_config.host_count];
+            
+            host->id = i;
+            host->ip = strdup(ip);
+            host->key = strdup(key);
+            host->sec = strdup(sec);
+            host->iface = strdup(iface ? iface : "vmx0");
+            snprintf(host->json_key, sizeof(host->json_key), "fw%d_public_ip", i);
+
+            app_config.host_count++;
+        }
+    }
+
+    printf("Loaded %zu OPNsense host configuration(s).\n", app_config.host_count);
 
     /* Start the HTTP Daemon */
     struct MHD_Daemon *daemon = MHD_start_daemon(
@@ -242,6 +266,14 @@ int main(void) {
     MHD_stop_daemon(daemon);
     curl_global_cleanup();
 
+    /* Clean up allocated host memory */
+    for (size_t i = 0; i < app_config.host_count; i++) {
+        free(app_config.hosts[i].ip);
+        free(app_config.hosts[i].key);
+        free(app_config.hosts[i].sec);
+        free(app_config.hosts[i].iface);
+    }
+    free(app_config.hosts);
+
     return EXIT_SUCCESS;
 }
-
