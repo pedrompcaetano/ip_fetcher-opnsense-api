@@ -173,7 +173,6 @@ static enum MHD_Result answer_to_connection(void *cls, struct MHD_Connection *co
 
     /* 5. Generate JSON Response */
     cJSON *res_json = cJSON_CreateObject();
-    cJSON_AddStringToObject(res_json, "source_ip", xff);
     
     /* 6. Iterate through all configured dynamic hosts */
     for (size_t i = 0; i < app_config.host_count; i++) {
