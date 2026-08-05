@@ -1,37 +1,34 @@
-# Stage 1: Build Environment
-FROM debian:trixie AS builder
+# Stage 1: Build static binary
+FROM debian:13-slim AS builder
 
+# Install build tools and static development libraries (.a files)
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
     build-essential \
-    libcurl4-openssl-dev \
+    pkg-config \
     libcjson-dev \
+    libcurl4-openssl-dev \
     libmicrohttpd-dev \
-    pkg-config
-
-WORKDIR /src
-COPY main.c .
-
-# Compile dynamically (removed -static and extra manual link flags)
-RUN gcc -O2 -o opnsense_api main.c -lmicrohttpd -lcjson -lcurl
-
-# Stage 2: Minimal Runtime Environment
-FROM gcr.io/distroless/cc-debian13
-
-# Install only the necessary runtime libraries
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends \
-    libmicrohttpd12t64 \
-    libcjson1 \
-    libcurl4t64 && \
+    libssl-dev \
+    zlib1g-dev \
+    ca-certificates && \
     rm -rf /var/lib/apt/lists/*
 
-# Create a non-root user
-RUN useradd -u 10001 -M -s /sbin/nologin appuser
+WORKDIR /build
+COPY . .
 
-COPY --from=builder /src/opnsense_api /opnsense_api
+# Compile using -static and resolve transitive dependencies via pkg-config
+RUN gcc -static main.c -o opnsense_api \
+    $(pkg-config --static --cflags --libs libcurl libcjson libmicrohttpd) \
+    -pthread
 
-EXPOSE 8000
+# Stage 2: Zero-overhead container (Zero OS vulnerabilities)
+FROM scratch
 
-USER 10001:10001
-CMD ["/opnsense_api"]
+# Copy root CA certificates (required if making HTTPS requests to OPNsense)
+COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
+
+# Copy the static binary
+COPY --from=builder /build/opnsense_api /opnsense_api
+
+ENTRYPOINT ["/opnsense_api"]
