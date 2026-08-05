@@ -1,0 +1,16 @@
+[Unit]
+Description=OPNsense IP Fetcher API Container
+After=network-online.target
+
+[Container]
+Image=localhost/opnsense-api:debian13
+ContainerName=opnsense-api
+PublishPort=8000:8000
+
+[Service]
+Restart=always
+TimeoutStartSec=90
+EnvironmentFile=/home/pcaetano/.local/share/containers/storage/volumes/ip-fetcher_env/_data/.env
+
+[Install]
+WantedBy=multi-user.target default.target
