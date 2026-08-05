@@ -1,0 +1,54 @@
+tls:
+  options:
+    default:
+      minVersion: VersionTLS12
+      cipherSuites:
+        - TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256
+        - TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384
+        - TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305
+        - TLS_AES_128_GCM_SHA256
+        - TLS_AES_256_GCM_SHA384
+        - TLS_CHACHA20_POLY1305_SHA256
+      curvePreferences:
+        - X25519MLKEM768        # Hybrid PQC key exchange (NIST ML-KEM + X25519)
+        - X25519                # Classical fast key exchange
+        - CurveP256             # Standard NIST curve (highly recommended for compatibility)
+        - CurveP384             # Standard NIST curve
+        - CurveP521             # Legacy / fallback
+      sniStrict: true
+http:
+  middlewares:
+    ip-fetcher-ratelimit:
+      rateLimit:
+        average: 1
+        period: 15s
+        burst:  1
+    secureHeaders:
+      headers:
+        browserXssFilter: true
+        contentTypeNosniff: true
+        frameDeny: true
+        sslRedirect: true
+        # HSTS Configuration
+        stsIncludeSubdomains: true
+        stsPreload: true
+        stsSeconds: 31536000
+        customFrameOptionsValue: "SAMEORIGIN"
+    geoblock-pt:
+         plugin:
+             geoblock:
+                 allowLocalRequests: "false"
+                 allowUnknownCountries: "false"
+                 api: https://get.geojs.io/v1/ip/country/{ip}
+                 apiTimeoutMs: "150"
+                 cacheSize: "15"
+                 countries:
+                     - PT
+                 allowedIPAddresses: "192.0.2.1"
+                 forceMonthlyUpdate: "true"
+                 logAllowedRequests: "false"
+                 logApiRequests: "true"
+                 logLocalRequests: "false"
+                 silentStartUp: "false"
+                 unknownCountryApiResponse: nil
+
