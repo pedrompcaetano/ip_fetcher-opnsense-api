@@ -1,37 +1,31 @@
-# Stage 1: Build static binary with Alpine
+# Stage 1: Build binary dynamically
 FROM alpine:3.24 AS builder
 
-# Install build tools, header packages (-dev), and static archives (-static)
 RUN apk add --no-cache \
     build-base \
     pkgconf \
     curl-dev \
-    curl-static \
     cjson-dev \
-    libmicrohttpd-dev \
-    openssl-dev \
-    openssl-libs-static \
-    zlib-dev \
-    zlib-static \
-    nghttp2-dev \
-    nghttp2-static \
-    ca-certificates
+    libmicrohttpd-dev
 
 WORKDIR /build
 COPY . .
 
-# Compile static binary
-RUN gcc -static main.c -o opnsense_api \
-    $(pkg-config --static --cflags --libs libcurl libcjson libmicrohttpd) \
+# Compile dynamically against Alpine headers
+RUN gcc main.c -o opnsense_api \
+    $(pkg-config --cflags --libs libcurl libcjson libmicrohttpd) \
     -pthread
 
-# Stage 2: Zero-overhead runtime container
-FROM scratch
+# Stage 2: Minimal Runtime (~10 MB total, zero vulnerability noise)
+FROM alpine:3.20
 
-# Copy CA certificates for HTTPS requests to OPNsense
-COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
+# Install only the runtime dynamic shared libraries
+RUN apk add --no-cache \
+    libcurl \
+    cjson \
+    libmicrohttpd \
+    ca-certificates
 
-# Copy static binary
-COPY --from=builder /build/opnsense_api /opnsense_api
+COPY --from=builder /build/opnsense_api /usr/local/bin/opnsense_api
 
-ENTRYPOINT ["/opnsense_api"]
+ENTRYPOINT ["/usr/local/bin/opnsense_api"]
