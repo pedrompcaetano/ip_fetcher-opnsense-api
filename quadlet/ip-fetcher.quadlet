@@ -10,7 +10,7 @@ PublishPort=8000:8000
 Label=traefik.enable=true
 Label=traefik.http.services.ip-fetcher.loadbalancer.server.port=8000
 Label=traefik.http.routers.ip-fetcher.rule=Host(`your-domain.com`) && PathPrefix(`/api/ips`)
-Label=traefik.http.routers.ip-fetcher.middlewares=secureHeaders@file,geoblock-pt@file
+Label=traefik.http.routers.ip-fetcher.middlewares=secureHeaders@file,geoblock-pt@file,ip-fetcher-ratelimit@file
 Label=traefik.http.routers.ip-fetcher.tls=true
 Label=traefik.http.routers.ip-fetcher.tls.certresolver=letsencrypt
 Label=traefik.http.routers.ip-fetcher.entrypoints=websecure
