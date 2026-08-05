@@ -25,12 +25,12 @@ jobs:
 
       - name: Save Podman image to archive
         run: |
-          podman save -o opnsense-api.tar localhost/opnsense-api:latest
+          podman save --format docker-archive -o opnsense-api.tar localhost/opnsense-api:latest
 
       - name: Generate SBOM
         uses: anchore/sbom-action@v0
         with:
-          image: archive:opnsense-api.tar
+          image: docker-archive:opnsense-api.tar
           format: cyclonedx-json
           output-file: sbom.json
 
