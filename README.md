@@ -1,6 +1,6 @@
 # OPNsense API
 
-![CodeQL](https://github.com/pedrompcaetano/ip_fetcher-opnsense-api/actions/workflows/codeql.yml/badge.svg)
+![CI Build](https://github.com/pedrompcaetano/ip_fetcher-opnsense-api/actions/workflows/ci.yml/badge.svg)
 [![SBOM Dependency Graph](https://img.shields.io/badge/SBOM-Dependency%20Graph-blue)](https://github.com/pedrompcaetano/ip_fetcher-opnsense-api/network/dependencies)
 [![Vulnerability Scanning](https://img.shields.io/badge/Security-Grype%20Scanned-green)](https://github.com/pedrompcaetano/ip_fetcher-opnsense-api/security/code-scanning)
 
