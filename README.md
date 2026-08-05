@@ -85,3 +85,5 @@ podman build -t opnsense-api:latest .
 podman run --rm opnsense-api:latest --help
 ```
 
+This is meant to be run behind a reverse proxy.
+You may find some wip related in the [/quadlet](/quadlet) directory.
