@@ -1,8 +1,8 @@
 # OPNsense API
 
-![CI Build](https://github.com/USERNAME/REPOSITORY/actions/workflows/ci.yml/badge.svg)
-[![SBOM Dependency Graph](https://img.shields.io/badge/SBOM-Dependency%20Graph-blue)](https://github.com/USERNAME/REPOSITORY/network/dependencies)
-[![Vulnerability Scanning](https://img.shields.io/badge/Security-Grype%20Scanned-green)](https://github.com/USERNAME/REPOSITORY/security/code-scanning)
+![CI Build](https://github.com/pedrompcaetano/ip_fetcher-opnsense-api/actions/workflows/ci.yml/badge.svg)
+[![SBOM Dependency Graph](https://img.shields.io/badge/SBOM-Dependency%20Graph-blue)](https://github.com/pedrompcaetano/ip_fetcher-opnsense-api/network/dependencies)
+[![Vulnerability Scanning](https://img.shields.io/badge/Security-Grype%20Scanned-green)](https://github.com/pedrompcaetano/ip_fetcher-opnsense-api/security/code-scanning)
 
 An abstract, highly lightweight microservice interface designed to communicate with OPNsense firewall and network appliances. Built with C for maximum performance and efficiency, packaged using containerization best practices, and backed by automated Software Supply Chain Security pipelines.
 
@@ -44,8 +44,8 @@ The continuous integration pipeline is driven by GitHub Actions and Podman:
 ## 🔍 Verifying SBOM & Security Reports
 
 ### 1. Repository Main Page & Native Views
-* **Dependency Graph:** View detected components directly under the repository's [Insights → Dependency graph](https://github.com/USERNAME/REPOSITORY/network/dependencies) tab.
-* **Security Findings:** Review identified CVEs and remediation status under the repository's [Security → Code scanning](https://github.com/USERNAME/REPOSITORY/security/code-scanning) tab.
+* **Dependency Graph:** View detected components directly under the repository's [Insights → Dependency graph](https://github.com/pedrompcaetano/ip_fetcher-opnsense-api/network/dependencies) tab.
+* **Security Findings:** Review identified CVEs and remediation status under the repository's [Security → Code scanning](https://github.com/pedrompcaetano/ip_fetcher-opnsense-api/security/code-scanning) tab.
 
 ### 2. Inspecting the SBOM Artifact Locally
 Download the `opnsense-api-sbom` artifact from any completed workflow run or release tag:
