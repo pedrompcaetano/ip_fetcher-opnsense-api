@@ -66,7 +66,7 @@ jobs:
         if: always()
         with:
           auth: ${{ secrets.GIST_SECRET }}
-          gistID: YOUR_GIST_ID_HERE
+          gistID: 78a8240d278d62fae119fb919b12e689
           filename: vulnerabilities.json
           label: vulnerabilities
           message: "${{ steps.count_vulns.outputs.COUNT }}"
