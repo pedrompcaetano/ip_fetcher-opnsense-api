@@ -6,6 +6,7 @@ After=network-online.target
 Image=localhost/opnsense-api:debian13
 ContainerName=opnsense-api
 PublishPort=8000:8000
+Memory=16m
 
 Network=traefik-net
 
