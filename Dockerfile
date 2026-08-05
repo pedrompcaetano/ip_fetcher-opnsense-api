@@ -17,7 +17,7 @@ RUN gcc main.c -o opnsense_api \
     -pthread
 
 # Stage 2: Minimal Runtime (~10 MB total, zero vulnerability noise)
-FROM alpine:3.20
+FROM alpine:3.24
 
 # Install only the runtime dynamic shared libraries
 RUN apk add --no-cache \
