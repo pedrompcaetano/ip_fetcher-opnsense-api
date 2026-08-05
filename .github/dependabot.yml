@@ -7,7 +7,7 @@ updates:
       interval: "weekly"
 
   # Monitor Dockerfile base images (e.g., alpine:3.20)
-  - package-ecosystem: "alpine:3.24"
+  - package-ecosystem: "docker"
     directory: "/"
     schedule:
       interval: "weekly"
