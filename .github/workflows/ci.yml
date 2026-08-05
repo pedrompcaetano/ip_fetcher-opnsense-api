@@ -62,7 +62,7 @@ jobs:
           fi
 
       - name: Update Vulnerability Badge Gist
-        uses: schneegans/dynamic-badges-action@v1.7.0
+        uses: schneegans/dynamic-badges-action@v1.9.0
         if: always()
         with:
           auth: ${{ secrets.GIST_SECRET }}
