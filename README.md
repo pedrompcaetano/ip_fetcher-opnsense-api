@@ -3,6 +3,7 @@
 ![CI Build](https://github.com/pedrompcaetano/ip_fetcher-opnsense-api/actions/workflows/ci.yml/badge.svg)
 [![SBOM Dependency Graph](https://img.shields.io/badge/SBOM-Dependency%20Graph-blue)](https://github.com/pedrompcaetano/ip_fetcher-opnsense-api/network/dependencies)
 [![Vulnerability Scanning](https://img.shields.io/badge/Security-Grype%20Scanned-green)](https://github.com/pedrompcaetano/ip_fetcher-opnsense-api/security/code-scanning)
+[![CodeQL](https://img.shields.io/github/actions/workflow/status/pedrompcaetano/ip_fetcher-opnsense-api/codeql.yml?branch=main&label=CodeQL&logo=github)](https://github.com/pedrompcaetano/ip_fetcher-opnsense-api/security/code-scanning)
 
 An abstract, highly lightweight microservice interface designed to communicate with OPNsense firewall and network appliances. Built with C for maximum performance and efficiency, packaged using containerization best practices, and backed by automated Software Supply Chain Security pipelines.
 
