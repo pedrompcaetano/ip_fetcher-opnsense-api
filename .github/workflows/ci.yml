@@ -47,31 +47,6 @@ jobs:
           fail-build: false  # Allow SARIF upload before failing
           severity-cutoff: high
 
-      - name: Calculate Vulnerability Count
-        id: count_vulns
-        run: |
-          # Count total matches using Grype JSON output
-          COUNT=$(grype sbom:sbom.json -o json | jq '.matches | length')
-          echo "COUNT=$COUNT" >> $GITHUB_OUTPUT
-          
-          # Set badge color based on count
-          if [ "$COUNT" -eq "0" ]; then
-            echo "COLOR=brightgreen" >> $GITHUB_OUTPUT
-          else
-            echo "COLOR=red" >> $GITHUB_OUTPUT
-          fi
-
-      - name: Update Vulnerability Badge Gist
-        uses: schneegans/dynamic-badges-action@v1.9.0
-        if: always()
-        with:
-          auth: ${{ secrets.GIST_SECRET }}
-          gistID: 78a8240d278d62fae119fb919b12e689
-          filename: vulnerabilities.json
-          label: vulnerabilities
-          message: "${{ steps.count_vulns.outputs.COUNT }}"
-          color: "${{ steps.count_vulns.outputs.COLOR }}"
-
       - name: Upload SARIF Report to GitHub Security
         uses: github/codeql-action/upload-sarif@v4
         if: always()
