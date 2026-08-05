@@ -1,34 +1,33 @@
-# Stage 1: Build static binary
-FROM debian:13-slim AS builder
+# Stage 1: Build static binary with Alpine
+FROM alpine:3.20 AS builder
 
-# Install build tools and static development libraries (.a files)
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends \
-    build-essential \
-    pkg-config \
-    libcjson-dev \
-    libcurl4-openssl-dev \
+# Install build tools and explicit static library packages
+RUN apk add --no-cache \
+    build-base \
+    pkgconf \
+    curl-static \
+    openssl-libs-static \
+    zlib-static \
+    nghttp2-static \
     libmicrohttpd-dev \
-    libssl-dev \
-    zlib1g-dev \
-    ca-certificates && \
-    rm -rf /var/lib/apt/lists/*
+    cjson-dev \
+    ca-certificates
 
 WORKDIR /build
 COPY . .
 
-# Compile using -static and resolve transitive dependencies via pkg-config
+# Compile static binary
 RUN gcc -static main.c -o opnsense_api \
     $(pkg-config --static --cflags --libs libcurl libcjson libmicrohttpd) \
     -pthread
 
-# Stage 2: Zero-overhead container (Zero OS vulnerabilities)
+# Stage 2: Zero-overhead runtime container
 FROM scratch
 
-# Copy root CA certificates (required if making HTTPS requests to OPNsense)
+# Copy CA certificates for HTTPS requests to OPNsense
 COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 
-# Copy the static binary
+# Copy static binary
 COPY --from=builder /build/opnsense_api /opnsense_api
 
 ENTRYPOINT ["/opnsense_api"]
