@@ -47,30 +47,6 @@ The continuous integration pipeline is driven by GitHub Actions and Podman:
 * **Dependency Graph:** View detected components directly under the repository's [Insights → Dependency graph](https://github.com/pedrompcaetano/ip_fetcher-opnsense-api/network/dependencies) tab.
 * **Security Findings:** Review identified CVEs and remediation status under the repository's [Security → Code scanning](https://github.com/pedrompcaetano/ip_fetcher-opnsense-api/security/code-scanning) tab.
 
-### 2. Inspecting the SBOM Artifact Locally
-Download the `opnsense-api-sbom` artifact from any completed workflow run or release tag:
-
-```bash
-# Count total components in the SBOM
-jq '.components | length' sbom.json
-
-# List component names and versions
-jq '.components[] | {name: .name, version: .version, type: .type}' sbom.json
-
-# Validate standard compliance
-cyclonedx validate --input-file sbom.json
-```
-
-### 3. Local Vulnerability Scanning
-To run an offline CVE audit against the generated SBOM using Grype or Trivy:
-
-```bash
-# Scan using Grype
-grype sbom:sbom.json
-
-# Scan using Trivy
-trivy sbom sbom.json
-```
 
 ---
 
