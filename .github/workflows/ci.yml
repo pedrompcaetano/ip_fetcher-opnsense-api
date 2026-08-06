@@ -19,10 +19,14 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v7
 
-      - name: Build container image with Podman
-        run: |
-          podman build -t localhost/opnsense-api:latest .
-
+      - name: Build container image with Buildah
+        id: buildah-build
+        uses: redhat-actions/buildah-build@v2
+        with:
+          image: opnsense-api
+          tags: latest
+          containerfiles: |
+            ./Containerfile
       - name: Verify image creation
         run: |
           podman images
