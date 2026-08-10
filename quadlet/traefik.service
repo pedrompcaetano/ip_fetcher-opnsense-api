@@ -1,0 +1,33 @@
+[Unit]
+Description=Traefik container
+After=http.socket https.socket
+Requires=http.socket https.socket
+
+[Container]
+Image=docker.io/library/traefik
+Exec=--entrypoints.web.address=:80 --entrypoints.websecure.address=:443 --entrypoints.web.http.redirections.entrypoint.to=websecure --entrypoints.web.http.redirections.entrypoint.scheme=https --certificatesresolvers.letsencrypt.acme.storage=/etc/traefik/acme.json --providers.file.filename=/etc/traefik/dynamic_configuration.yml --providers.file.watch=true --providers.docker --providers.docker.exposedbydefault=false  --experimental.plugins.geoblock.modulename=github.com/PascalMinder/geoblock --experimental.plugins.geoblock.version=v0.3.8 --api=false --certificatesresolvers.letsencrypt.acme.email=pcaetano@127-0-0-1.network --certificatesresolvers.letsencrypt.acme.tlschallenge=true --certificatesresolvers.letsencrypt.acme.certificatesduration=160 --accesslog.bufferingsize=0 --accesslog.filters.statuscodes=400-599 --ping
+Network=internal.network
+Network=public.network
+Notify=true
+Label=io.containers.autoupdate=registry
+Label=traefik.http.routers.traefik.tls=true
+Label=traefik.http.routers.traefik.tls.certresolver=letsencrypt
+Label=traefik.http.routers.traefik.entrypoints=websecure
+Volume=traefik-config.volume:/etc/traefik/:Z
+Volume=%t/podman/podman.sock:/var/run/docker.sock
+SecurityLabelDisable=true
+HealthCmd=CMD-SHELL traefik healthcheck --ping
+HealthInterval=30s
+HealthRetries=3
+HealthStartPeriod=15s
+HealthTimeout=3s
+HealthOnFailure=kill
+
+[Service]
+Restart=always
+MemoryMax=512M
+Sockets=http.socket https.socket
+
+[Install]
+WantedBy=default.target
+
