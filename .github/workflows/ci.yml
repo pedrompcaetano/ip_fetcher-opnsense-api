@@ -21,7 +21,7 @@ jobs:
 
       - name: Build container image with Buildah
         id: buildah-build
-        uses: redhat-actions/buildah-build@v2
+        uses: redhat-actions/buildah-build@v3
         with:
           image: opnsense-api
           tags: latest
