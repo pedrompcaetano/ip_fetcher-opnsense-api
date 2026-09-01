@@ -23,7 +23,7 @@ jobs:
           image: ip-fetcher
           tags: latest ${{ github.sha }}
           containerfiles: |
-            ./Dockerfile
+            ./Containerfile
 
       - name: Push to GitHub Container Registry
         uses: redhat-actions/push-to-registry@v2
