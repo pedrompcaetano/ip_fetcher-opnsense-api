@@ -22,6 +22,7 @@ typedef struct {
 } OpnsenseHost;
 
 struct AppConfig {
+    char api_token[256];
     char auth_header[512];
     OpnsenseHost *hosts;
     size_t host_count;
@@ -141,12 +142,12 @@ static enum MHD_Result send_text_response(struct MHD_Connection *connection, int
 
 /* Main Request Router */
 static enum MHD_Result answer_to_connection(void *cls, struct MHD_Connection *connection,
-                                           const char *url, const char *method,
-                                           const char *version, const char *upload_data,
-                                           size_t *upload_data_size, void **con_cls) {
+                                          const char *url, const char *method,
+                                          const char *version, const char *upload_data,
+                                          size_t *upload_data_size, void **con_cls) {
     
     if (NULL == *con_cls) {
-        *con_cls = (void *)1;  
+        *con_cls = (void *)1;   
         return MHD_YES;
     }
     *con_cls = NULL;
@@ -161,9 +162,24 @@ static enum MHD_Result answer_to_connection(void *cls, struct MHD_Connection *co
         return send_text_response(connection, MHD_HTTP_METHOD_NOT_ALLOWED, "Method Not Allowed\n");
     }
 
-    /* 3. Bearer Token Authentication */
-    const char *auth_header = MHD_lookup_connection_value(connection, MHD_HEADER_KIND, "Authorization");
-    if (!auth_header || strcmp(auth_header, app_config.auth_header) != 0) {
+    /* 3. Authentication (?apikey= query parameter OR Authorization: Bearer header) */
+    int authenticated = 0;
+
+    /* Check 3a: Query parameter ?apikey=... */
+    const char *query_token = MHD_lookup_connection_value(connection, MHD_GET_ARGUMENT_KIND, "apikey");
+    if (query_token && strcmp(query_token, app_config.api_token) == 0) {
+        authenticated = 1;
+    }
+
+    /* Check 3b: Fallback to Authorization: Bearer header */
+    if (!authenticated) {
+        const char *auth_header = MHD_lookup_connection_value(connection, MHD_HEADER_KIND, "Authorization");
+        if (auth_header && strcmp(auth_header, app_config.auth_header) == 0) {
+            authenticated = 1;
+        }
+    }
+
+    if (!authenticated) {
         return send_text_response(connection, MHD_HTTP_UNAUTHORIZED, "Unauthorized\n");
     }
 
@@ -207,6 +223,7 @@ int main(void) {
         fprintf(stderr, "FATAL: API_TOKEN environment variable is required.\n");
         return EXIT_FAILURE;
     }
+    snprintf(app_config.api_token, sizeof(app_config.api_token), "%s", token);
     snprintf(app_config.auth_header, sizeof(app_config.auth_header), "Bearer %s", token);
 
     /* Dynamically discover OPNSENSE<N>_ environment variables */
@@ -244,9 +261,9 @@ int main(void) {
 
     /* Start the HTTP Daemon */
     struct MHD_Daemon *daemon = MHD_start_daemon(
-        MHD_USE_INTERNAL_POLLING_THREAD | MHD_USE_ERROR_LOG,  
-        PORT, NULL, NULL,  
-        &answer_to_connection, NULL,  
+        MHD_USE_INTERNAL_POLLING_THREAD | MHD_USE_ERROR_LOG,   
+        PORT, NULL, NULL,   
+        &answer_to_connection, NULL,   
         MHD_OPTION_END
     );
 
@@ -258,7 +275,7 @@ int main(void) {
     printf("Server listening on port %d...\n", PORT);
 
     while (keep_running) {
-        pause();  
+        pause();   
     }
 
     printf("\nShutting down server gracefully...\n");
