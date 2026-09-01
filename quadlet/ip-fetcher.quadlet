@@ -7,8 +7,9 @@ Image=localhost/opnsense-api:debian13
 ContainerName=opnsense-api
 PublishPort=8000:8000
 Memory=16m
+EnvironmentFile=/home/containers/.local/share/containers/storage/volumes/ip-fetcher_env/_data/.env
 
-Network=traefik-net
+etwork=systemd-public
 
 SecurityLabelDisable=false
 NoNewPrivileges=true
@@ -17,7 +18,7 @@ SeccompProfile=/usr/share/containers/seccomp.json
 
 Label=traefik.enable=true
 Label=traefik.http.services.ip-fetcher.loadbalancer.server.port=8000
-Label=traefik.http.routers.ip-fetcher.rule=Host(`your-domain.com`) && PathPrefix(`/api/ips`) && Method(`GET`)
+Label=traefik.http.routers.ip-fetcher.rule=Host(`ip.127-0-0-1.network`) && PathPrefix(`/api/ips`) && Method(`GET`)
 Label=traefik.http.routers.ip-fetcher.middlewares=secureHeaders@file,geoblock-pt@file,ip-fetcher-ratelimit@file
 Label=traefik.http.routers.ip-fetcher.tls=true
 Label=traefik.http.routers.ip-fetcher.tls.certresolver=letsencrypt
@@ -26,7 +27,6 @@ Label=traefik.http.routers.ip-fetcher.entrypoints=websecure
 [Service]
 Restart=always
 TimeoutStartSec=90
-EnvironmentFile=/home/pcaetano/.local/share/containers/storage/volumes/ip-fetcher_env/_data/.env
 
 [Install]
 WantedBy=multi-user.target default.target

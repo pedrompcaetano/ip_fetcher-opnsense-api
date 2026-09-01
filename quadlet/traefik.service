@@ -14,7 +14,7 @@ Label=traefik.http.routers.traefik.tls=true
 Label=traefik.http.routers.traefik.tls.certresolver=letsencrypt
 Label=traefik.http.routers.traefik.entrypoints=websecure
 Volume=traefik-config.volume:/etc/traefik/:Z
-Volume=%t/podman/podman.sock:/var/run/docker.sock
+Volume=%t/podman/podman.sock:/var/run/docker.sock:ro
 SecurityLabelDisable=true
 HealthCmd=CMD-SHELL traefik healthcheck --ping
 HealthInterval=30s
