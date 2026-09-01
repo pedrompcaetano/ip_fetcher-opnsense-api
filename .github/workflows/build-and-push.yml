@@ -1,0 +1,35 @@
+name: Build and Push Container Image
+
+on:
+  push:
+    branches: [ "main" ]
+
+# Essential: Allows the GITHUB_TOKEN to write images to GHCR
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Build image with Buildah
+        id: build-image
+        uses: redhat-actions/buildah-build@v2
+        with:
+          image: ip-fetcher
+          tags: latest ${{ github.sha }}
+          containerfiles: |
+            ./Dockerfile
+
+      - name: Push to GitHub Container Registry
+        uses: redhat-actions/push-to-registry@v2
+        with:
+          image: ${{ steps.build-image.outputs.image }}
+          tags: ${{ steps.build-image.outputs.tags }}
+          registry: ghcr.io/${{ github.repository_owner }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
